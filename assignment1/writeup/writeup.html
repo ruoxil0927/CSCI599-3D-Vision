@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>assignment1</title>
+		<style>
+			body { margin: 0; }
+		</style>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.147.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.147.0/examples/jsm/"
+          }
+        }
+    </script>
+	</head>
+	<body>
+		<h1 style="text-align: center;">Assignment 1: Surface Mesh Simplication and Subdivision</h1>
+		<h2>Introduction</h2>
+		<p>For this assignment, you will be implementing two algorithms covering: 1. Loop Subdivision 2. Quadratic Error Mesh Decimation over any 3D object. 
+			<ul>
+				<li><a href="https://en.wikipedia.org/wiki/Subdivision_surface#Loop_subdivision_surface">Loop Subdivision</a></li>
+				<li><a href="https://www.cs.cmu.edu/~./garland/Papers/quadrics.pdf">Quadric Error Mesh Decimation</a></li>
+			</ul>
+			We have made available a visualization tool using the Three.js library implemented in "./js/assignment1.js" and an example implementation located in "./assignments/assignment1.py". Your objective is to create implementations for both "subdivision_loop" and "simplify_quadric_error". You are encouraged to use a programming language with which you are comfortable. The output results should be in the obj format, and you must visualize your outcomes accordingly. 
+			<br><br>
+			<b>How to Submit: </b>Please submit this template file along with your implementation as a zip file. The zip file should contain your source code, the generated results in OBJ mesh format, and a report that has been modified using this HTML file. The report should comprise your results and a concise explanation of your implementation. Alternatively, you may choose to create a GitHub repository containing all these elements and provide a link for submission.
+			<br><br>
+			<b>Grading: </b>The grading is based on the correctness of your implementation. You are encouraged to use the visualization tool to debug your implementation. You can also use the visualization tool to test your implementation on other 3D models. You can find an example of 3D model in the "./assets" folder.</p>
+		</p>
+		<h2>Background</h2>
+		
+		<h2>Data Structure</h2>
+		<p>
+			<b>Design Logic </b>
+			<br><br>
+			1. For loop subdivision, I followed the code from TA. The data structure is based on some helper function from trimesh package. Basically, we have two mask array to label whether a given edge is interior edge or boundary edge. We use the graph.neighbors to find the neighbors for each vertex.
+			<br><br>
+			2. For Quadric Error Mesh Decimation, I roughly followd the realization in open3D. We have a matrix to store K for each vertex. And we need to store the neighbor vertices and all faces for each vertices. This can help us to find all impacted edges and update the cost in each step. And we also need two mask for vertices and faces to label whether the element has been deleted. Finally, we need a min heap to find the edge with smallest cost.
+			<br><br>
+			<b>Implement Details </b>
+			<br><br>
+			1. For loop subdivision, an <i>edge_inter</i> array for interior edges, an <i>edge_bound</i> array for boundary edge, an <i>edge_bound_mask</i> to mark boundary edges, and <i>edge_inte_mask</i> to mark interior edges, an <i>neighbors</i> array for vertex neighbors.
+			<br><br>
+			2. For Quadric Error Mesh Decimation, an <i>Ki</i> matrix to store K[i] for each vertex, an <i>v2f</i> array to store faces for each vertex, an <i>v2v</i> array to store neighbor vertices for each vertex, two boolean array <i>deleted_vertices</i> and <i>deleted_faces</i> to marker deleted elements, a heap <i>edge_heap</i> to find the edge with smallest cost.
+			<br><br>
+		</p>
+		<h2>Loop Subdivision</h2>
+		<p>
+			<b>Algorithm </b>
+			<br><br>
+				1. Create odd vertices.
+				<br><br>
+				1. Update odd vertices.
+				<br><br>
+				2. Compute even vertices.
+				<br><br>
+				3. Rebuild mesh.
+				<br><br>
+			<b>Implement Details </b>
+			<br><br>
+				I basically followed the example from TA and the realization in the trimesh/remesh.py.
+				<br><br>
+				1. Find all edges and split them into interior edges and boundary edges.
+				<br><br>
+				2. Set odd vertices to the middle of each edge. The default setting cover the boundary case so that we do not need to deal with the boundary case.
+				<br><br>
+				3. Find v<sub>0</sub>, v<sub>1</sub>, v<sub>2</sub> and v<sub>3</sub> and each odd vertex. v<sub>0</sub> and v<sub>1</sub> are at the end of the edge where the generated odd on. v<sub>2</sub> and v<sub>3</sub> are at the farmost position of the two triangle. Update the odd vertices based on the v<sub>0</sub>, v<sub>1</sub>, v<sub>2</sub> and v<sub>3</sub>.
+				<br><br>
+				4. Find vertex neighbors for even vertices and update accordingly. First, convert list type of array into a fixed-shaped numpy array (set -1 to empties). If the neighbors has -1 index, its point is (0, 0, 0) so that it is not included in the summation of neighbors. After we know the number of neighbors, we can calculate even vertices for the interior case.
+				<br><br>
+				5. Update boundary case for even vertices.
+				<br><br>
+				6. Finally, we rebuild the mesh.
+			<br><br>
+			<b>Results </b>
+			<br><br>
+			The following are the results with 1, 2 and 3 iterations.
+			<div id="container1"></div>
+			<script type="module" src="js/assignment1-loop-1.js"></script>
+			<script type="module" src="js/assignment1-loop-2.js"></script>
+			<script type="module" src="js/assignment1-loop-3.js"></script>
+		</p>
+
+		<h2>Quadric Error Mesh Decimation</h2>
+		<p>
+			<b>Algorithm </b>
+			<br><br>
+				1. Compute the K matrices for all the initial vertices.
+				<br><br>
+				2. Select all valid pairs.
+				<br><br>
+				3. Compute the optimal contraction target v for each valid pair (v<sub>1</sub>, v<sub>2</sub>). The error v<sup>T</sup>(Q<sub>1</sub> + Q<sub>2</sub>)v of this target vertex becomes the cost of contracting that pair. 
+				<br><br>
+				4. Place all the pairs in a heap keyed on cost with the minimum cost pair at the top. 
+				<br><br>
+				5. Iteratively remove the pair (v<sub>1</sub>, v<sub>2</sub>) of least cost from the heap, contract this pair, and update the costs of all valid pairs involving v<sub>1</sub>. 
+				<br><br>
+			<b>Implement Details </b>
+			<br><br>
+				1. To compute the K, we need to know the parameters for each plane equation ax + by + cz + d = 0. a, b and c are the normal vector of the plane and we can get it directly from trimesh. The d can be calculated using the inner product of a point on the plane and its normal vector. Then for each plane K<sub>i</sub> = [a, b, c, d]<sup>T</sup>[a, b, c, d]. The K for each vertex is equal to the sum of Ks from incident triangles.
+				<br><br>
+				2. To compute the cost and the optimal point v for each pair, I followed the method in the slides. First, split the matrix K in to four block. Second, compute x = -B<sup>-1</sup>w. Thrid, compute cost = x<sup>T</sup>Bx + 2w<sup>T</sup>x + d<sup>2</sup>
+				<br><br>
+				3. At each step, we pop the first pair (v<sub>1</sub>, v<sub>2</sub>) from the heap. First, we need to check whether this pair is still valid. If either vertex has been deleted or the cost is not equal to the current cost, we skip this pair. Second, we need to set v<sub>1</sub> = v and delete v<sub>2</sub> and we need to set K[v<sub>1</sub>] += K[v<sub>2</sub>]. Third, for all pairs that contains v<sub>1</sub> or v<sub>2</sub>, we need to change v<sub>2</sub> to v<sub>1</sub> and recalculate the cost. If the pair contains both v<sub>1</sub> and v<sub>2</sub>, we just delete it. Fourth, we need to update all faces. If the face contains v<sub>1</sub> and v<sub>2</sub> at the same time, we delete this face. Otherwise, we check whether it contains v<sub>2</sub> and set it to v<sub>1</sub> if needed.
+				<br><br>
+				4. Finally, we rebuild the mesh based on the updated vertices and faces information.
+			<br><br>
+			<b>Results </b>
+			<br><br>
+			The top result is generated using the trimesh, the bottom result is generated using my code. The face count is set to 6.
+			<div id="container2"></div>
+			<script type="module" src="js/assignment1-qem-trimesh.js"></script>
+			<script type="module" src="js/assignment1-qem-custom.js"></script>
+		</p>
+		<h2>Extra Credits</h2>
+		In Quadric Error Mesh Decimation, one corner case is the matrix B can be uninvertible. To deal with this case, we can calculate the cost for v<sub>1</sub>, v<sub>2</sub> and the mid point v<sub>mid</sub>, then we choose the point with smallest cost as the v. This is realized in the file "assignment-qem.py" line 74-88.
+	</body>
+</html>
